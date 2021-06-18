@@ -9,5 +9,5 @@ Since it is a private repository, sub-projects/tasks and involved personnel will
 Sub-project/task | Personnel
 ---------------- | ---------
 NLP (Penn State) | Pranav Venkit (pranav.venkit@psu.edu)
-Speech detection |  Chris Graziul (graziul@uchicago.edu), Al Hu (huthealex@uchicago.edu)
+VAD (UChicago) |  Chris Graziul (graziul@uchicago.edu), Al Hu (huthealex@uchicago.edu)
 Emotion-in-speech | Ayah Ahmad (UChicago start 6/14/21)
