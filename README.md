@@ -22,9 +22,11 @@ The `docs` and `notebooks` folders have been created to facilitate documentation
 
 Data analysis requires several steps of data cleaning, feature extraction, etc. and so it is important to recognize dependencies. Below will be transformed into a graph in time:
 
+```
 Preprocessing -> VAD
 VAD -> ASR
 VAD -> SER
 ASR -> NLP
+```
 
 Note: NLP is being performed on manually transcribed audio recordings but a critical goal is to rely on ASR to scale NLP to the full corpus.
