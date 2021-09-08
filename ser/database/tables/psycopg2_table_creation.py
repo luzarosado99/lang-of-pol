@@ -4,38 +4,25 @@ import functools
 
 def invocation_counter(func): # to check the number of invocations with the number of items in the SQL table
     inv_counter = 0
-
     @functools.wraps(func)
     def decorating_function(*args, **kwargs):
         nonlocal inv_counter
         inv_counter += 1
         func(*args, **kwargs)
-
     def info():
         return inv_counter
-
     def clear():
         inv_counter = 0
-
     decorating_function.clear = clear
     decorating_function.info = info
     return decorating_function
   
 ### customization of tables ###
 TABLE_NAME = "individual_audiofile_metadata"
-TABLE_COLUMNS = "file_name varchar(200), file_location varchar(200), file_length_seconds numeric, day int, month int, time int, year int, zone varchar(10)"
-sql_table_creation = f"CREATE TABLE {TABLE_NAME} ({TABLE_COLUMNS});"
-
 TABLE2_NAME = "vad_metadata"
-TABLE2_COLUMNS = "file_name varchar(200), file_location varchar(200), nonsilent_minutes num, nonsilent_slices int[]" # TODO add db, pydub to this statement
-sql_table2_creation = f"CREATE TABLE {TABLE2_NAME} ({TABLE2_COLUMNS});"
-
 TABLE3_NAME = "daily_audio_metadata"
-TABLE3_COLUMNS = "directory_name varchar(200), directory_location varchar(200), complete_data boolean, day_length_minutes numeric, files_total_silence int[], has_silent_files boolean"
-sql_table3_creation = f"CREATE TABLE {TABLE3_NAME} ({TABLE3_COLUMNS});"
 
 ### filepaths/locations ###
-sql_path = f"zone.sql"
 core_path='/media/4tb/data/'
 
 ### connection to psycopg2 ###
@@ -137,16 +124,12 @@ def date_folder_iter(path_to_folder, metadata_endswith, isdir=False):
     """ finds all the metadata pickle files in each date directory """
     for subdir,directory,files in os.walk(path_to_folder):
         for fil in files:
-            print("directory", directory)
-            print(files)
             if fil.endswith(metadata_endswith) and isdir==False:
                 pickle_path = os.path.join(path_to_folder,subdir,fil)
                 try:
                     from_pickle_metafile(pickle_path, sql_path, metadata_endswith)
                 except Exception as e:
                    print(e)
-                   print(fil)
-                   print(path_to_folder)
                    conn.rollback()
                    from_pickle_metafile(pickle_path, sql_path, metadata_endswith)
                    pass
@@ -175,7 +158,6 @@ def insertion_from_properties(file_name, file_location, zone, prop_dict):
         date = f"{year}-{month}-{day} 00:{int((str(time)[:2]))}"
     curr.execute(f"INSERT INTO {TABLE_NAME}(file_name, file_location, file_length_seconds, date, zone) VALUES{file_name, file_location, file_length_seconds, date, int(zone[4:])}")
     conn.commit()
-    print("committed a ..")
 @invocation_counter
 def vad_insertion_from_properties(file_name, file_location, zone, vad_prop_dict):
     """ uses mp3 properties to generate the insert line """
@@ -218,7 +200,6 @@ def daily_insertion_from_properties(directory_location, zone, dictionary, metada
     date = directory_location.replace("_", "-")
     curr.execute(f"INSERT INTO {TABLE3_NAME} VALUES{str(directory_name), directory_location, complete_data, day_length_minutes, files, has_silent_files}")
     conn.commit()
-    print("committed a daily")
 
 def daily_from_pickle_metafile(pickle_path, sql_path, metadata_endswith):
     pkl_fil = open(pickle_path, 'rb')
