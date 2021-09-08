@@ -1,40 +1,51 @@
-import datetime, glob, pickle, os, psycopg2 , pprint
-from pathlib import Path
 import functools
+import os
+import pickle
+import pprint
+import psycopg2
 
-def invocation_counter(func): # to check the number of invocations with the number of items in the SQL table
+
+def invocation_counter(func):  # to check the number of invocations with the number of items in the SQL table
     inv_counter = 0
+
     @functools.wraps(func)
     def decorating_function(*args, **kwargs):
         nonlocal inv_counter
         inv_counter += 1
         func(*args, **kwargs)
+
     def info():
         return inv_counter
+
     def clear():
         inv_counter = 0
+
     decorating_function.clear = clear
     decorating_function.info = info
     return decorating_function
-  
+
+
 ### customization of tables ###
-TABLE_NAME = "individual_audiofile_metadata"
-TABLE2_NAME = "vad_metadata"
-TABLE3_NAME = "daily_audio_metadata"
+table1_name = "individual_audiofile_metadata"
+table2_name = "vad_metadata"
+table3_name = "daily_audio_metadata"
 
 ### filepaths/locations ###
-core_path='/media/4tb/data/'
+core_path = '/media/4tb/data/'
 
 ### connection to psycopg2 ###
-try: # creates table under "t-9ayah" user -- may block other users from accessing it
-    conn = psycopg2.connect(host="lop-db.uchicago.edu", sslrootcert=lop-db.uchicago.edu.ca, sslcert=lop-db.uchicago.edu-cert.pem, sslkey=lop-db.uchicago.edu-key.pem, port=5432, user="t-9ayah", database="lop", dbname="lop")
+try:  # creates table under "t-9ayah" user -- may block other users from accessing it
+    conn = psycopg2.connect(host="lop-db.uchicago.edu", sslrootcert=lop - db.uchicago.edu.ca,
+                            sslcert=lop - db.uchicago.edu - cert.pem, sslkey=lop - db.uchicago.edu - key.pem, port=5432,
+                            user="t-9ayah", database="lop", dbname="lop")
 except:
-    conn = psycopg2.connect("host=lop-db.uchicago.edu sslmode=require sslrootcert=lop-db.uchicago.edu.ca sslcert=lop-db.uchicago.edu-cert.pem sslkey=lop-db.uchicago.edu-key.pem port=5432 user=t-9ayah dbname=lop")
+    conn = psycopg2.connect(
+        "host=lop-db.uchicago.edu sslmode=require sslrootcert=lop-db.uchicago.edu.ca sslcert=lop-db.uchicago.edu-cert.pem sslkey=lop-db.uchicago.edu-key.pem port=5432 user=t-9ayah dbname=lop")
 curr = conn.cursor()
 conn.rollback()
 ### creation of tables ###
 try:
-   curr.execute("""
+    curr.execute("""
        CREATE TABLE individual_audiofile_metadata(
        file_name varchar(30) PRIMARY KEY,
        file_location varchar(70),
@@ -42,14 +53,14 @@ try:
        date timestamp,
        zone integer)
    """)
-   conn.commit()
+    conn.commit()
 except psycopg2.errors.DuplicateTable:
-   pass
+    pass
 except psycopg2.errors.InFailedSqlTransaction as e:
-   print("ERROR: ", e)
-   conn.rollback()
+    print("ERROR: ", e)
+    conn.rollback()
 try:
-   curr.execute("""
+    curr.execute("""
        CREATE TABLE vad_metadata(
        file_name varchar(30) PRIMARY KEY,
        file_location varchar(70),
@@ -57,14 +68,14 @@ try:
        nonsilent_slices int[]
        )
    """)
-   conn.commit()
+    conn.commit()
 except psycopg2.errors.DuplicateTable:
-   pass
+    pass
 except psycopg2.errors.InFailedSqlTransaction as e:
-   print("ERROR: ", e)
-   conn.rollback()
+    print("ERROR: ", e)
+    conn.rollback()
 try:
-   curr.execute("""
+    curr.execute("""
        CREATE TABLE daily_audio_metadata(
        date timestamp,
        directory_location varchar(70) PRIMARY KEY,
@@ -73,20 +84,22 @@ try:
        files_total_silence varchar[],
        has_silent_files boolean)
    """)
-   conn.commit()
+    conn.commit()
 except psycopg2.errors.DuplicateTable:
-   pass
+    pass
 except psycopg2.errors.InFailedSqlTransaction as e:
-   print("ERROR: ", e)
-   conn.rollback()
+    print("ERROR: ", e)
+    conn.rollback()
+
 
 ### general functions ###
 def sql_insertion_input(*args):
     """creates a line of the insert table command"""
-    ENTRY = ', '.join([str(i) for i in args])
-    return f"{ENTRY}"
+    entry = ', '.join([str(i) for i in args])
+    return f"{entry}"
 
-def from_pickle_metafile(pickle_path, sql_path, metadata_endswith):
+
+def from_pickle_metafile(pickle_path, metadata_endswith):
     """ converts a pickle file to an sql table """
     pkl_fil = open(pickle_path, 'rb')
     dictionary = pickle.load(pkl_fil)
@@ -96,20 +109,22 @@ def from_pickle_metafile(pickle_path, sql_path, metadata_endswith):
             file_location = os.path.join(os.path.split(pickle_path)[0], key)
             prop_dict = dictionary[key]
             if metadata_endswith == "vad_dict.pkl":
-                 try:
-                    generated_sql_statement = vad_insertion_from_properties(key, file_location, zone, prop_dict)
-                 except Exception as e:
+                try:
+                    vad_insertion_from_properties(key, file_location, prop_dict)
+                except Exception as e:
                     print(e)
                     conn.rollback()
-                    generated_sql_statement = vad_insertion_from_properties(key, file_location, zone, prop_dict)
+                    vad_insertion_from_properties(key, file_location, prop_dict)
             elif metadata_endswith == "metadata_dict.pkl":
                 try:
-                    generated_sql_statement = insertion_from_properties(key, file_location, zone, prop_dict)
+                    insertion_from_properties(key, file_location, zone, prop_dict)
                 except psycopg2.errors.UniqueViolation:
                     pass
                 except Exception as e:
                     print(e)
                     pass
+
+
 def zone_folder_iter(base_path, metadata_endswith, isdir=False):
     """ finds all the metadata pickle files in each date directory """
     available_files = os.listdir(base_path)
@@ -119,27 +134,30 @@ def zone_folder_iter(base_path, metadata_endswith, isdir=False):
         global zone
         zone = available_folders[f]
         date_folder_iter(path_to_folder[f], metadata_endswith, isdir)
-        
+
+
 def date_folder_iter(path_to_folder, metadata_endswith, isdir=False):
     """ finds all the metadata pickle files in each date directory """
-    for subdir,directory,files in os.walk(path_to_folder):
+    for subdir, directory, files in os.walk(path_to_folder):
         for fil in files:
-            if fil.endswith(metadata_endswith) and isdir==False:
-                pickle_path = os.path.join(path_to_folder,subdir,fil)
+            if fil.endswith(metadata_endswith) and isdir == False:
+                pickle_path = os.path.join(path_to_folder, subdir, fil)
                 try:
-                    from_pickle_metafile(pickle_path, sql_path, metadata_endswith)
+                    from_pickle_metafile(pickle_path, metadata_endswith)
                 except Exception as e:
-                   print(e)
-                   conn.rollback()
-                   from_pickle_metafile(pickle_path, sql_path, metadata_endswith)
-                   pass
-            elif fil.endswith(metadata_endswith) and isdir==True:
-                pickle_path = os.path.join(path_to_folder,subdir,fil)
+                    print(e)
+                    conn.rollback()
+                    from_pickle_metafile(pickle_path, metadata_endswith)
+                    pass
+            elif fil.endswith(metadata_endswith) and isdir == True:
+                pickle_path = os.path.join(path_to_folder, subdir, fil)
                 try:
-                    daily_from_pickle_metafile(pickle_path, sql_path, metadata_endswith)
+                    daily_from_pickle_metafile(pickle_path, metadata_endswith)
                 except psycopg2.errors.InFailedSqlTransaction as e:
                     conn.rollback()
-                    daily_from_pickle_metafile(pickle_path, sql_path, metadata_endswith)
+                    daily_from_pickle_metafile(pickle_path, metadata_endswith)
+
+
 ### individual_audiofile_metadata-specific functions ###
 @invocation_counter
 def insertion_from_properties(file_name, file_location, zone, prop_dict):
@@ -152,14 +170,17 @@ def insertion_from_properties(file_name, file_location, zone, prop_dict):
     month = recording_start_dict['month']
     if len(str(time)) == 4:
         date = f"{year}-{month}-{day} {int((str(time))[:2])}:{int((str(time)[2:]))}"
-    elif len(str(time))==3:
+    elif len(str(time)) == 3:
         date = f"{year}-{month}-{day} 0{int((str(time))[:1])}:{int((str(time)[1:]))}"
     elif len(str(time)) == 2:
         date = f"{year}-{month}-{day} 00:{int((str(time)[:2]))}"
-    curr.execute(f"INSERT INTO {TABLE_NAME}(file_name, file_location, file_length_seconds, date, zone) VALUES{file_name, file_location, file_length_seconds, date, int(zone[4:])}")
+    curr.execute(
+        f"INSERT INTO {table1_name}(file_name, file_location, file_length_seconds, date, zone) VALUES{file_name, file_location, file_length_seconds, date, int(zone[4:])}")
     conn.commit()
+
+
 @invocation_counter
-def vad_insertion_from_properties(file_name, file_location, zone, vad_prop_dict):
+def vad_insertion_from_properties(file_name, file_location, vad_prop_dict):
     """ uses mp3 properties to generate the insert line """
     if len(vad_prop_dict) == 0 or file_name.startswith("Zone"):
         return
@@ -167,11 +188,14 @@ def vad_insertion_from_properties(file_name, file_location, zone, vad_prop_dict)
     db = vad_program.get(-24, "none")
     nonsilent_minutes = db['nonsilent_minutes']
     nonsilent_slices = db["nonsilent_slices"]
-    s = str(nonsilent_slices).replace("[","{")
-    l = s.replace("]","}")
+    s = str(nonsilent_slices).replace("[", "{")
+    l = s.replace("]", "}")
     slices = str(l)
-    curr.execute(f"INSERT INTO {TABLE2_NAME}(file_name, file_location, nonsilent_minutes, nonsilent_slices) VALUES{file_name, file_location, nonsilent_minutes, slices}")
+    curr.execute(
+        f"INSERT INTO {table2_name}(file_name, file_location, nonsilent_minutes, nonsilent_slices) VALUES{file_name, file_location, nonsilent_minutes, slices}")
     conn.commit()
+
+
 ### daily_audio_metadata-specific functions ###
 @invocation_counter
 def daily_insertion_from_properties(directory_location, zone, dictionary, metadata_endswith):
@@ -192,27 +216,31 @@ def daily_insertion_from_properties(directory_location, zone, dictionary, metada
     complete_data = dictionary["complete_data"]
     has_silent_files = dictionary["has_silent_files"]
     directory_name = os.path.split(directory_location)[1]
-    daily_entries = sql_insertion_input(str(directory_name), directory_location, day_length_minutes, files_total_silence, complete_data, has_silent_files)
-    f = str(files_total_silence).replace("[","{")
-    i = f.replace("]","}")
-    l = i.replace("'",'"')
+    f = str(files_total_silence).replace("[", "{")
+    i = f.replace("]", "}")
+    l = i.replace("'", '"')
     files = str(l)
     date = directory_location.replace("_", "-")
-    curr.execute(f"INSERT INTO {TABLE3_NAME} VALUES{str(directory_name), directory_location, complete_data, day_length_minutes, files, has_silent_files}")
+    curr.execute(
+        f"INSERT INTO {table3_name} VALUES{str(directory_name), directory_location, complete_data, day_length_minutes, files, has_silent_files}")
     conn.commit()
 
-def daily_from_pickle_metafile(pickle_path, sql_path, metadata_endswith):
+
+def daily_from_pickle_metafile(pickle_path, metadata_endswith):
     pkl_fil = open(pickle_path, 'rb')
     dictionary = pickle.load(pkl_fil)
     pkl_fil.close()
     directory_location = os.path.split(pickle_path)[0]
     try:
-        daily_generated_sql_statement = daily_insertion_from_properties(directory_location, zone, dictionary, metadata_endswith)
+        daily_insertion_from_properties(directory_location, zone, dictionary,
+                                        metadata_endswith)
     except Exception as e:
         print(e)
         conn.rollback()
-        daily_generated_sql_statement = daily_insertion_from_properties(directory_location, zone, dictionary, metadata_endswith)
-        
+        daily_insertion_from_properties(directory_location, zone, dictionary,
+                                        metadata_endswith)
+
+
 if __name__ == "__main__":
     zone_folder_iter(core_path, "metadata_dict.pkl")
     print(insertion_from_properties.info())
