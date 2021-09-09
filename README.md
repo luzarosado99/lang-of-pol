@@ -10,7 +10,7 @@ Sub-project/task | Personnel
 ---------------- | ---------
 Preprocessing | Chris Graziul (graziul@uchicago.edu)
 ASR | Chris Graziul (graziul@uchicago.edu)
-VAD | Chris Graziul (graziul@uchicago.edu), Al Hu (huthealex@uchicago.edu)
+VAD | Chris Graziul (graziul@uchicago.edu), Al Hu (huthealex@uchicago.edu), Anish Kanabar (anishk@uchicago.edu)
 SER | Ayah Ahmad (ayahahmad@berkeley.edu)
 NLP (Penn State) | Pranav Venkit (pranav.venkit@psu.edu)
 
